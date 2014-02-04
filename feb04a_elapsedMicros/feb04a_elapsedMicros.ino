@@ -123,11 +123,11 @@ void loop()
 
   static uint8_t phaseYstate;
   
-  unsigned long phaseOinterval = 0;
+  unsigned long phaseOinterval;
 
-  unsigned long phaseGinterval = 0;
+  unsigned long phaseGinterval;
 
-  unsigned long phaseYinterval = 0;
+  unsigned long phaseYinterval;
 
   // local copy of update flags
   

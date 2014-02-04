@@ -2,11 +2,13 @@
 
 Included elapsedMicros for Calibration & ISR
 Added printserial and results captured
-Set the local loop interval variable to 0
+Set up new calibration calculation variable with print
 
-Results = 05 motor error. The print serial results still confusing
+Results tst1 = 05 motor error. The print serial results still confusing
 Expecting to see the loop timer count up to the interval
 but it doesn't.
+
+Results tst2 = 
 
  include the pinchangeint library to access 3 x pin interrupts
 */
@@ -128,6 +130,12 @@ void loop()
   unsigned long phaseGinterval;
 
   unsigned long phaseYinterval;
+  
+  unsigned long phaseOcal;
+
+  unsigned long phaseGcal;
+
+  unsigned long phaseYcal;
 
   // local copy of update flags
   
@@ -177,6 +185,8 @@ void loop()
 
 if(phaseOoutput = true)
   {
+    phaseOcal = (phaseOinterval/calPercent);
+          
       Serial.println();
       Serial.print("O");
       Serial.print(",");     
@@ -185,11 +195,12 @@ if(phaseOoutput = true)
       Serial.print(timerO);
       Serial.print(",");
       Serial.print(phaseOstate);
-    
-    if(timerO >= (phaseOinterval/calPercent))
+      Serial.print(",");
+      Serial.print(phaseOcal);
+        
+    if(timerO >= phaseOcal)
     {
       timerO = 0; //reset timer by subtracting calInterval
-      //phaseOinterval=(phaseOinterval/calPercent);
       phaseOoutput = false;
 //      Serial.print(",");
 //      Serial.print(timerO);
@@ -200,6 +211,8 @@ if(phaseOoutput = true)
 
 if(phaseGoutput = true)
   {
+    phaseGcal = (phaseGinterval/calPercent);
+    
       Serial.println();
       Serial.print("G");
       Serial.print(",");     
@@ -208,8 +221,10 @@ if(phaseGoutput = true)
       Serial.print(timerG);
       Serial.print(",");
       Serial.print(phaseGstate);
+      Serial.print(",");
+      Serial.print(phaseGcal);
     
-    if(timerG >= (phaseGinterval/calPercent))
+    if(timerG >= phaseGcal)
     {
       timerG = 0; //reset the timer
       phaseGoutput = false;
@@ -222,7 +237,10 @@ if(phaseGoutput = true)
 
 if(phaseYoutput = true)
   {
-    Serial.println();
+      
+    phaseYcal = (phaseYinterval/calPercent);
+    
+      Serial.println();
       Serial.print("Y");
       Serial.print(",");     
       Serial.print(phaseYinterval);
@@ -230,8 +248,10 @@ if(phaseYoutput = true)
       Serial.print(timerY);
       Serial.print(",");
       Serial.print(phaseYstate);
-   
-    if(timerY >= (phaseYinterval/calPercent))
+      Serial.print(",");
+      Serial.print(phaseYcal);
+        
+    if(timerY >= phaseYcal)
     {
       timerY = 0; //reset the timer
       phaseYoutput = false;

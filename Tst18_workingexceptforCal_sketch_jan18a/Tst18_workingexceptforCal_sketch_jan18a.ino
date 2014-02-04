@@ -1,6 +1,16 @@
-// 3 Channel Signal Calibration
+/* 3 Channel Signal Calibration
 
-// include the pinchangeint library
+Incorporates a couple of coding thoughts:
+Remove the flag for the 1st phase
+added the calibration calc to the 1st Phase
+added the interval calc to the ISR
+
+Result = drives motor via throttle poorly.
+Starts of with knocking then progresses to 
+noisy speed up to the max throttle.
+Not a viable output.
+include the pinchangeint library
+*/
 #include <PinChangeInt.h>
 
 // Assign channel in pins

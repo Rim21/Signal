@@ -1,5 +1,6 @@
 // 3 Channel Signal Calibration
-
+// Result = drives motor via throttle, poor start
+// but evens out after a couple of revs
 // include the pinchangeint library
 #include <PinChangeInt.h>
 

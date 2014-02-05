@@ -1,17 +1,24 @@
 /* 3 Channel Signal Calibration
 
+This item is rolled over from feb_04a to provide a new baseline for the
+removal of the loop flags to see results.
+
 Included elapsedMicros for Calibration & ISR
 Added printserial and results captured
 Set up new calibration calculation variable with print
 
-Results tst1 = 05 motor error. The print serial results still confusing
-Expecting to see the loop timer count up to the interval
-but it doesn't.
+Results tst1 =
+3.2-3.4msec loop time - way too long
+05 error code when hooked up as a signal interceptor
 
-Results tst2 = The print serial results now are more
-consistent since moving the loop() variables outside. The intervals
-and calibration values are steady. The time appears to be nearly consistent.
-Error is that the output deosn't toggle.
+Results tst2 =
+paired back all print and extraneous code
+get a 05 error if powered via usb
+get no motor but no 05 error if powered by bike
+
+Results tst3 =
+Changed interrupt pins to dedicated Leo interrupts as follows:
+Leo pins 3,0,1 = interrupts 0,2,3
 
  include the pinchangeint library to access 3 x pin interrupts
 */
@@ -19,10 +26,10 @@ Error is that the output deosn't toggle.
 // include the elapsedMillis library to access 3 x micros timers
 #include <elapsedMillis.h>
 
-// Assign channel in pins
-const byte phaseOin = 8;
-const byte phaseGin = 9;
-const byte phaseYin = 10;
+// Assign Leo interrupts
+const byte phaseOin = 0;
+const byte phaseGin = 2;
+const byte phaseYin = 3;
 
 // Assign channel out pins
 const byte phaseOout = 5;
@@ -35,17 +42,12 @@ volatile uint8_t phaseGStateIn;
 volatile uint8_t phaseYStateIn;
 
 // Setup signal time constants for calcs
-//volatile unsigned long phaseOstart = 0;
+
 volatile unsigned long phaseOintervalin = 0;
-boolean phaseOoutput = false;
 
-//volatile unsigned long phaseGstart = 0;
 volatile unsigned long phaseGintervalin = 0;
-boolean phaseGoutput = false;
 
-//volatile unsigned long phaseYstart = 0;
 volatile unsigned long phaseYintervalin = 0;
-boolean phaseYoutput = false;
 
 //Setup calibration & debounce constants
 const int debounce = 100;
@@ -96,10 +98,8 @@ volatile uint8_t FlagsShared;
 void setup()
 {
 
-//  Serial.begin(115200);
+  Serial.begin(115200);
 
-//  Serial.println("multiChannels");
-  
   //PhaseO pin setup                      
   pinMode(phaseOout, OUTPUT);    
   pinMode(phaseOin, INPUT);  
@@ -108,10 +108,7 @@ void setup()
 //existing state of the signal at the beginning and then let the Loop() function alter it
 //from there
   digitalWrite(phaseOout, phaseOStateIn);
-//  phaseOstart = 0;
-//  phaseOend = 0;
-//  phaseOintervalin = 0;
-  
+
   //PhaseG pin setup                      
   pinMode(phaseGout, OUTPUT);    
   pinMode(phaseGin, INPUT);
@@ -128,9 +125,9 @@ void setup()
   
   // use the PinChangeInt library to attach the interrupts
   // Pins chosen make this interchangeable with an Uno and Leo
-  PCintPort::attachInterrupt(phaseOin, calcPhaseO,CHANGE); 
-  PCintPort::attachInterrupt(phaseGin, calcPhaseG,CHANGE); 
-  PCintPort::attachInterrupt(phaseYin, calcPhaseY,CHANGE);
+  attachInterrupt(phaseOin, calcPhaseO,CHANGE); 
+  attachInterrupt(phaseGin, calcPhaseG,CHANGE); 
+  attachInterrupt(phaseYin, calcPhaseY,CHANGE);
 
   //Set the Timers to 0 and start them as the last activity in Setup
   timerOint = 0;
@@ -162,21 +159,18 @@ void loop()
     {
       phaseOstate = phaseOStateIn;
       phaseOinterval = phaseOintervalin;
-      phaseOoutput = true;
     }
 
     if(UpdateFlags & phaseGflag)
     {
       phaseGstate = phaseGStateIn;
       phaseGinterval = phaseGintervalin;
-      phaseGoutput = true;
     }
 
     if(UpdateFlags & phaseYflag)
     {
       phaseYstate = phaseYStateIn;
       phaseYinterval = phaseYintervalin;
-      phaseYoutput = true;
     }
                 
     // clear shared copy of updated flags
@@ -187,50 +181,35 @@ void loop()
 
   }
 
-if(phaseOoutput = true)
-  {
+
     phaseOcal = (phaseOinterval/calPercent);
         
-    if(timerO >= phaseOcal)
+    if(timerO > phaseOcal)
     {
       timerO = 0; //reset timer by subtracting calInterval
-      phaseOoutput = false;
-
       digitalWrite(phaseOout, phaseOstate);
     }
-  }
 
 
-if(phaseGoutput = true)
-  {
     phaseGcal = (phaseGinterval/calPercent);
 
-    if(timerG >= phaseGcal)
+    if(timerG > phaseGcal)
     {
       timerG = 0; //reset the timer
-      phaseGoutput = false;
-
       digitalWrite(phaseGout, phaseGstate);
     }
-  }
   
 
-if(phaseYoutput = true)
-  {
-      
     phaseYcal = (phaseYinterval/calPercent);
 
-    if(timerY >= phaseYcal)
+    if(timerY > phaseYcal)
     {
       timerY = 0; //reset the timer
-      phaseYoutput = false;
-
       digitalWrite(phaseYout, phaseYstate);
     }
-  }
         
   UpdateFlags = 0;
-/*      Serial.println();
+     Serial.println();
       Serial.print(UpdateFlags);
             Serial.println();
       Serial.print("O");
@@ -261,7 +240,7 @@ if(phaseYoutput = true)
       Serial.print(",");
       Serial.print(timerY);
       Serial.print(",");
-      Serial.print(phaseYstate);*/
+      Serial.print(phaseYstate);
 }
 
 //  interrupt service routines

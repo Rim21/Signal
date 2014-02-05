@@ -66,7 +66,30 @@ const byte phaseYflag = 4;
 
 // holds the update flags defined above
 volatile uint8_t FlagsShared;
+  // create local variables to hold a local copies of the channel inputs
 
+  static uint8_t phaseOstate;
+  
+  static uint8_t phaseGstate;
+
+  static uint8_t phaseYstate;
+  
+  unsigned long phaseOinterval;
+
+  unsigned long phaseGinterval;
+
+  unsigned long phaseYinterval;
+  
+  unsigned long phaseOcal;
+
+  unsigned long phaseGcal;
+
+  unsigned long phaseYcal;
+
+  // local copy of update flags
+  
+  static uint8_t UpdateFlags;
+  
 void setup()
 {
 
@@ -117,29 +140,7 @@ void setup()
 
 void loop()
 {
-  // create local variables to hold a local copies of the channel inputs
 
-  static uint8_t phaseOstate;
-  
-  static uint8_t phaseGstate;
-
-  static uint8_t phaseYstate;
-  
-  unsigned long phaseOinterval;
-
-  unsigned long phaseGinterval;
-
-  unsigned long phaseYinterval;
-  
-  unsigned long phaseOcal;
-
-  unsigned long phaseGcal;
-
-  unsigned long phaseYcal;
-
-  // local copy of update flags
-  
-  static uint8_t UpdateFlags;
 
   // check shared update flags to see if any channels have a change in the signal
   
@@ -186,24 +187,12 @@ void loop()
 if(phaseOoutput = true)
   {
     phaseOcal = (phaseOinterval/calPercent);
-          
-      Serial.println();
-      Serial.print("O");
-      Serial.print(",");     
-      Serial.print(phaseOinterval);
-      Serial.print(",");
-      Serial.print(timerO);
-      Serial.print(",");
-      Serial.print(phaseOstate);
-      Serial.print(",");
-      Serial.print(phaseOcal);
         
     if(timerO >= phaseOcal)
     {
       timerO = 0; //reset timer by subtracting calInterval
       phaseOoutput = false;
-//      Serial.print(",");
-//      Serial.print(timerO);
+
       digitalWrite(phaseOout, phaseOstate);
     }
   }
@@ -212,24 +201,12 @@ if(phaseOoutput = true)
 if(phaseGoutput = true)
   {
     phaseGcal = (phaseGinterval/calPercent);
-    
-      Serial.println();
-      Serial.print("G");
-      Serial.print(",");     
-      Serial.print(phaseGinterval);
-      Serial.print(",");
-      Serial.print(timerG);
-      Serial.print(",");
-      Serial.print(phaseGstate);
-      Serial.print(",");
-      Serial.print(phaseGcal);
-    
+
     if(timerG >= phaseGcal)
     {
       timerG = 0; //reset the timer
       phaseGoutput = false;
-//      Serial.print(",");
-//      Serial.print(timerG);
+
       digitalWrite(phaseGout, phaseGstate);
     }
   }
@@ -239,36 +216,55 @@ if(phaseYoutput = true)
   {
       
     phaseYcal = (phaseYinterval/calPercent);
-    
-      Serial.println();
-      Serial.print("Y");
-      Serial.print(",");     
-      Serial.print(phaseYinterval);
-      Serial.print(",");
-      Serial.print(timerY);
-      Serial.print(",");
-      Serial.print(phaseYstate);
-      Serial.print(",");
-      Serial.print(phaseYcal);
-        
+
     if(timerY >= phaseYcal)
     {
       timerY = 0; //reset the timer
       phaseYoutput = false;
-//      Serial.print(",");
-//      Serial.print(timerY);
+
       digitalWrite(phaseYout, phaseYstate);
     }
   }
         
   UpdateFlags = 0;
+/*      Serial.println();
+      Serial.print(UpdateFlags);
+            Serial.println();
+      Serial.print("O");
+      Serial.print(",");     
+      Serial.print(phaseOinterval);
+      Serial.print(",");
+      Serial.print(phaseOcal);
+      Serial.print(",");
+      Serial.print(timerO);
+      Serial.print(",");
+      Serial.print(phaseOstate);
+            Serial.println();
+      Serial.print("G");
+      Serial.print(",");     
+      Serial.print(phaseGinterval);
+      Serial.print(",");
+      Serial.print(phaseGcal);
+      Serial.print(",");
+      Serial.print(timerG);
+      Serial.print(",");
+      Serial.print(phaseGstate);
+            Serial.println();
+      Serial.print("Y");
+      Serial.print(",");     
+      Serial.print(phaseYinterval);
+      Serial.print(",");
+      Serial.print(phaseYcal);
+      Serial.print(",");
+      Serial.print(timerY);
+      Serial.print(",");
+      Serial.print(phaseYstate);*/
 }
 
 //  interrupt service routines
 
 void calcPhaseO()
 {
-//  phaseOstart = micros(); // get the current time
   phaseOStateIn = digitalRead(phaseOin); // get the current pin state
 
       phaseOintervalin=timerOint; // calc the interval since last read
@@ -280,7 +276,6 @@ void calcPhaseO()
 void calcPhaseG()
 {
   phaseGStateIn = digitalRead(phaseGin);
-//  phaseGstart = micros();
 
       phaseGintervalin=timerGint;
       timerGint=0;
@@ -291,7 +286,6 @@ void calcPhaseG()
 void calcPhaseY()
 {
   phaseYStateIn = digitalRead(phaseYin);
-//  phaseYstart = micros();
 
       phaseYintervalin=timerYint;
       timerYint=0;

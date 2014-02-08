@@ -27,14 +27,14 @@ Leo pins 3,0,1 = interrupts 0,2,3
 #include <elapsedMillis.h>
 
 // Assign Leo interrupts
-const byte phaseOin = 0;
-const byte phaseGin = 2;
-const byte phaseYin = 3;
+const byte phaseOin = 8;
+const byte phaseGin = 9;
+const byte phaseYin = 10;
 
 // Assign channel out pins
-const byte phaseOout = 5;
-const byte phaseGout = 6;
-const byte phaseYout = 7;
+const byte phaseOout = 2;
+const byte phaseGout = 4;
+const byte phaseYout = 12;
 
 // Setup signal outputs expected by external processor
 volatile uint8_t phaseOStateIn;
@@ -125,9 +125,9 @@ void setup()
   
   // use the PinChangeInt library to attach the interrupts
   // Pins chosen make this interchangeable with an Uno and Leo
-  attachInterrupt(phaseOin, calcPhaseO,CHANGE); 
-  attachInterrupt(phaseGin, calcPhaseG,CHANGE); 
-  attachInterrupt(phaseYin, calcPhaseY,CHANGE);
+  PCintPort::attachInterrupt(phaseOin, calcPhaseO,CHANGE); 
+  PCintPort::attachInterrupt(phaseGin, calcPhaseG,CHANGE); 
+  PCintPort::attachInterrupt(phaseYin, calcPhaseY,CHANGE);
 
   //Set the Timers to 0 and start them as the last activity in Setup
   timerOint = 0;
@@ -187,7 +187,8 @@ void loop()
     if(timerO > phaseOcal)
     {
       timerO = 0; //reset timer by subtracting calInterval
-      digitalWrite(phaseOout, phaseOstate);
+      //digitalWrite(phaseOout, phaseOstate);
+      PIND=bit(1);
     }
 
 
@@ -196,7 +197,8 @@ void loop()
     if(timerG > phaseGcal)
     {
       timerG = 0; //reset the timer
-      digitalWrite(phaseGout, phaseGstate);
+      //digitalWrite(phaseGout, phaseGstate);
+      PIND=bit(4);
     }
   
 
@@ -205,12 +207,15 @@ void loop()
     if(timerY > phaseYcal)
     {
       timerY = 0; //reset the timer
-      digitalWrite(phaseYout, phaseYstate);
+      //digitalWrite(phaseYout, phaseYstate);
+      PIND=bit(12);
     }
-        
-  UpdateFlags = 0;
+
      Serial.println();
       Serial.print(UpdateFlags);
+        
+  UpdateFlags = 0;
+
             Serial.println();
       Serial.print("O");
       Serial.print(",");     

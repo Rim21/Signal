@@ -1,25 +1,37 @@
 /* 3 Channel Signal Calibration
+re-baseline from feb_06a_PINx
 
-This item is rolled over from feb_05a to assist with trying different
-code adjustments searching for the most efficent Loop() and/or ISR()
+ISR timer code added
+result1 = motor works
 
-Included elapsedMicros for Calibration & ISR
-changed back to PinChnageInterrupts
-Looking at direct port manipulation to toggle outputs - Loop() only
-setup() digitalWrite using a single line of code
-Remove the digital read to ISR as a consequence
+Calc moved to no-iterrupts part of loop()
+result2 = motor works
+
+Changed calPercent to .95. Changed the Loop() 'if' from flags
+to timer
+result3 = 05
+
+Reversed code back to result2, added timer reset to
+setup() & loop, added delayMicroseonds of 600/900 & 1900 and baselined
+
+result4 = motor runs but has a noise that is OK but
+appears to be getting slightly out of sync. For delay of 1900 I got
+a very fast motor noise and an increase in speed to 10.6kmh but
+also got an occassional 05
+
+Changed the delayMicroseconds to a variable. Added the variable
+calculation to the no-interrupts. Changed to cal of .75/.85/.90.
+
+result5 = motor runs rough @ .85, just @ .90 and not @ .75
 
 
-Results tst1 = 05 code
-
-
- include the pinchangeint library to access 3 x pin interrupts
-*/
+// include the pinchangeint library*/
 #include <PinChangeInt.h>
+
 // include the elapsedMillis library to access 3 x micros timers
 #include <elapsedMillis.h>
 
-// Assign Leo interrupts
+// Assign channel in pins
 const byte phaseOin = 8;
 const byte phaseGin = 9;
 const byte phaseYin = 10;
@@ -30,21 +42,13 @@ const byte phaseGout = 4;
 const byte phaseYout = 12;
 
 // Setup signal outputs expected by external processor
-//volatile uint8_t phaseOStateIn;
-//volatile uint8_t phaseGStateIn;
-//volatile uint8_t phaseYStateIn;
-
-// Setup signal time constants for calcs
-
-volatile unsigned long phaseOintervalin;
-
-volatile unsigned long phaseGintervalin;
-
-volatile unsigned long phaseYintervalin;
+volatile uint8_t phaseOStateIn;
+volatile uint8_t phaseGStateIn;
+volatile uint8_t phaseYStateIn;
 
 //Setup calibration & debounce constants
 const int debounce = 100;
-float calPercent = .85;
+float calPercent = .90;
 
 // Setup the 3 timers to be used for calibration
 elapsedMicros timerO;
@@ -64,14 +68,21 @@ const byte phaseYflag = 4;
 
 // holds the update flags defined above
 volatile uint8_t FlagsShared;
+
   // create local variables to hold a local copies of the channel inputs
 
-//  static uint8_t phaseOstate;
-  
-//  static uint8_t phaseGstate;
+  static uint8_t phaseOstate;
 
-//  static uint8_t phaseYstate;
+  static uint8_t phaseGstate;
+
+  static uint8_t phaseYstate;
   
+volatile unsigned long phaseOintervalin;
+
+volatile unsigned long phaseGintervalin;
+
+volatile unsigned long phaseYintervalin;
+
   unsigned long phaseOinterval;
 
   unsigned long phaseGinterval;
@@ -83,53 +94,58 @@ volatile uint8_t FlagsShared;
   unsigned long phaseGcal;
 
   unsigned long phaseYcal;
+  
+  unsigned long phaseOdelay;
+  
+  unsigned long phaseGdelay;
+  
+  unsigned long phaseYdelay;
 
   // local copy of update flags
   
   static uint8_t UpdateFlags;
-  
+
 void setup()
 {
-
   delay(2500);
-//  Serial.begin(115200);
-
-  //PhaseO pin setup                      
+    Serial.begin(115200);
+  
+  //Speed pin setup                      
   pinMode(phaseOout, OUTPUT);    
-  pinMode(phaseOin, INPUT);  
-  digitalWrite (phaseOin, HIGH); // turn on the internal pull-up resistor
-//phaseOStateIn = digitalRead(phaseOin); // the intent here is to read and write the
+  pinMode(phaseOin, INPUT);
+  digitalWrite (phaseOin, HIGH);
+    phaseOStateIn = digitalRead(phaseOin); // the intent here is to read and write the
 //existing state of the signal at the beginning and then let the Loop() function alter it
 //from there
-  digitalWrite(phaseOout, digitalRead(phaseOin));
-
-  //PhaseG pin setup                      
+  digitalWrite(phaseOout, phaseOStateIn);
+  
+  //PhaseO pin setup                      
   pinMode(phaseGout, OUTPUT);    
   pinMode(phaseGin, INPUT);
   digitalWrite (phaseGin, HIGH);
-//phaseGStateIn = digitalRead(phaseGin);
-  digitalWrite(phaseGout, digitalRead(phaseGin));
-  
-  //PhaseY pin setup                      
+    phaseGStateIn = digitalRead(phaseGin);
+  digitalWrite(phaseGout, phaseGStateIn);
+
+  //PhaseG pin setup                      
   pinMode(phaseYout, OUTPUT);    
   pinMode(phaseYin, INPUT);
-  digitalWrite (phaseYin, HIGH); 
-//phaseYStateIn = digitalRead(phaseYin);
-  digitalWrite(phaseYout, digitalRead(phaseYin));
-  
+  digitalWrite (phaseYin, HIGH);
+    phaseYStateIn = digitalRead(phaseYin);
+  digitalWrite(phaseYout, phaseYStateIn);
+
   // use the PinChangeInt library to attach the interrupts
   // Pins chosen make this interchangeable with an Uno and Leo
   PCintPort::attachInterrupt(phaseOin, calcPhaseO,CHANGE); 
   PCintPort::attachInterrupt(phaseGin, calcPhaseG,CHANGE); 
   PCintPort::attachInterrupt(phaseYin, calcPhaseY,CHANGE);
-
-  //Set the Timers to 0 and start them as the last activity in Setup
+ 
+   //Set the Timers to 0 and start them as the last activity in Setup
   timerOint = 0;
   timerGint = 0;
   timerYint = 0; 
-  timerO = 0;
-  timerG = 0;
-  timerY = 0; 
+//  timerO = 0;
+//  timerG = 0;
+//  timerY = 0;  
 }
 
 void loop()
@@ -151,20 +167,23 @@ void loop()
     
     if(UpdateFlags & phaseOflag)
     {
-//      phaseOstate = phaseOStateIn;
       phaseOinterval = phaseOintervalin;
+      phaseOcal = (phaseOinterval/calPercent);
+      phaseOdelay = phaseOcal-phaseOinterval;
     }
 
     if(UpdateFlags & phaseGflag)
     {
-//      phaseGstate = phaseGStateIn;
       phaseGinterval = phaseGintervalin;
+      phaseGcal = (phaseGinterval/calPercent);
+      phaseGdelay = phaseGcal-phaseGinterval;
     }
 
     if(UpdateFlags & phaseYflag)
     {
-//      phaseYstate = phaseYStateIn;
       phaseYinterval = phaseYintervalin;
+      phaseYcal = (phaseYinterval/calPercent);
+      phaseYdelay = phaseYcal-phaseYinterval;
     }
                 
     // clear shared copy of updated flags
@@ -174,40 +193,39 @@ void loop()
     interrupts(); // we have local copies of the inputs, so now we can turn interrupts back on
 
   }
-
-
-    phaseOcal = (phaseOinterval/calPercent);
-        
-    if(timerO > phaseOcal)
-    {
-      timerO = 0; //reset timer by subtracting calInterval
-      PIND = bit (1);
-      //digitalWrite(phaseOout, phaseOstate);
-    }
-
-
-    phaseGcal = (phaseGinterval/calPercent);
-
-    if(timerG > phaseGcal)
-    {
-      timerG = 0; //reset the timer
-      PIND = bit (4);
-      //digitalWrite(phaseGout, phaseGstate);
-    }
   
 
-    phaseYcal = (phaseYinterval/calPercent);
+  if(UpdateFlags & phaseOflag)
+  {
+//    digitalWrite(phaseOout, phaseOstate);
+//      timerO = 0;
+    delayMicroseconds(phaseOdelay);
+    PIND=bit(1);
+  }
 
-    if(timerY > phaseYcal)
-    {
-      timerY = 0; //reset the timer
-      PIND = bit (6);
-      //digitalWrite(phaseYout, phaseYstate);
-    }
 
-//     Serial.println();
-//      Serial.print(UpdateFlags);
-        
+
+  if(UpdateFlags & phaseGflag)
+  {
+//    digitalWrite(phaseGout, phaseGstate);
+//      timerG = 0;
+    delayMicroseconds(phaseGdelay);    
+    PIND=bit(4);
+  }
+
+
+
+  if(UpdateFlags & phaseYflag)
+  {
+//    digitalWrite(phaseYout, phaseYstate);
+//      timerY = 0;
+    delayMicroseconds(phaseYdelay);      
+    PIND=bit(6);
+  }
+
+//      Serial.println();
+//      Serial.print(UpdateFlags);        
+
   UpdateFlags = 0;
 
 /*            Serial.println();
@@ -217,9 +235,8 @@ void loop()
       Serial.print(",");
       Serial.print(phaseOcal);
       Serial.print(",");
-      Serial.print(timerO);
-      Serial.print(",");
-      Serial.print(digitalRead(phaseOout));
+      Serial.print(phaseOdelay);
+
             Serial.println();
       Serial.print("G");
       Serial.print(",");     
@@ -227,9 +244,8 @@ void loop()
       Serial.print(",");
       Serial.print(phaseGcal);
       Serial.print(",");
-      Serial.print(timerG);
-      Serial.print(",");
-      Serial.print(digitalRead(phaseGout));
+      Serial.print(phaseGdelay);
+
             Serial.println();
       Serial.print("Y");
       Serial.print(",");     
@@ -237,40 +253,34 @@ void loop()
       Serial.print(",");
       Serial.print(phaseYcal);
       Serial.print(",");
-      Serial.print(timerY);
-      Serial.print(",");
-      Serial.print(digitalRead(phaseYout));
-      */
+      Serial.print(phaseYdelay);
+*/
+      
 }
+
 
 //  interrupt service routines
 
 void calcPhaseO()
 {
-//phaseOStateIn = digitalRead(phaseOin); // get the current pin state
-
+//  phaseOStateIn = digitalRead(phaseOin);
       phaseOintervalin=timerOint; // calc the interval since last read
       timerOint=0; // save the time that the pin read was taken
-
   FlagsShared |= phaseOflag;
 }
 
 void calcPhaseG()
 {
-//phaseGStateIn = digitalRead(phaseGin);
-
+//  phaseGStateIn = digitalRead(phaseGin);
       phaseGintervalin=timerGint;
       timerGint=0;
-
   FlagsShared |= phaseGflag;
 }
 
 void calcPhaseY()
 {
-//phaseYStateIn = digitalRead(phaseYin);
-
+//  phaseYStateIn = digitalRead(phaseYin);
       phaseYintervalin=timerYint;
       timerYint=0;
-
   FlagsShared |= phaseYflag;
 }
